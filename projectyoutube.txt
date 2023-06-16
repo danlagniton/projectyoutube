@@ -1,0 +1,140 @@
+youtube-clone
+├── app
+│   ├── controllers
+│   │   ├── ListController.js
+│   │   └── DetailsController.js
+│   ├── views
+│   │   ├── list.html
+│   │   └── details.html
+│   └── app.js
+├── public
+│   ├── css
+│   │   └── main.css
+│   └── videos
+│       ├── video1.mp4
+│       ├── video2.mp4
+│       └── video3.mp4
+└── index.html
+
+index.html
+<!DOCTYPE html>
+<html ng-app="youtubeApp">
+<head>
+  <title>YouTube Clone</title>
+  <link rel="stylesheet/less" type="text/css" href="public/css/main.less" />
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-route.min.js"></script>
+  <script src="app/app.js"></script>
+  <script src="app/controllers/ListController.js"></script>
+  <script src="app/controllers/DetailsController.js"></script>
+</head>
+<body>
+  <div ng-view></div>
+</body>
+</html>
+
+
+app.js
+angular.module('youtubeApp', ['ngRoute'])
+  .config(function($routeProvider) {
+    $routeProvider
+      .when('/', {
+        templateUrl: 'app/views/list.html',
+        controller: 'ListController'
+      })
+      .when('/video/:videoId', {
+        templateUrl: 'app/views/details.html',
+        controller: 'DetailsController'
+      })
+      .otherwise({
+        redirectTo: '/'
+      });
+  });
+
+
+
+ListController.js
+angular.module('youtubeApp')
+  .controller('ListController', function($scope, $http) {
+    $scope.videos = [];
+    $scope.searchQuery = '';
+
+    $scope.searchVideos = function() {
+      $http.get(`/api/videos?q=${$scope.searchQuery}`)
+        .then(function(response) {
+          $scope.videos = response.data;
+        })
+        .catch(function(error) {
+          console.error('Error retrieving videos:', error);
+        });
+    };
+  });
+
+
+
+DetailsController.js
+angular.module('youtubeApp')
+  .controller('DetailsController', function($scope, $routeParams) {
+    $scope.videoId = $routeParams.videoId;
+  });
+
+
+
+list.html
+<div class="container">
+  <input type="text" ng-model="searchQuery" placeholder="Search videos" ng-change="searchVideos()">
+  <ul class="video-list">
+    <li ng-repeat="video in videos">
+      <a href="#/video/{{video.id}}">
+        <div class="thumbnail">
+          <img ng-src="{{video.thumbnail}}" alt="Video Thumbnail">
+        </div>
+        <div class="title">{{video.title}}</div>
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+
+details.html
+<div class="container">
+  <h1>Video Details</h1>
+  <p>Video ID: {{videoId}}</p>
+</div>
+
+
+
+server.js
+const express = require('express');
+const lessMiddleware = require('less-middleware');
+
+const app = express();
+const port = 3000;
+
+app.use(lessMiddleware('public'));
+app.use(express.static('public'));
+
+// Mocked video data
+const videos = [
+  { id: '1', title: 'Video 1', thumbnail: '/videos/video1.jpg' },
+  { id: '2', title: 'Video 2', thumbnail: '/videos/video2.jpg' },
+  { id: '3', title: 'Video 3', thumbnail: '/videos/video3.jpg' }
+];
+
+app.get('/api/videos', (req, res) => {
+  const searchQuery = req.query.q || '';
+
+  // Filtering videos based on search query
+  const filteredVideos = videos.filter(video => video.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  res.json(filteredVideos);
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
